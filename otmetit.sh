@@ -39,15 +39,26 @@ EV="evidence/${ID}.md"
   printf '```\n'
 } > "$EV"
 
-# галочка в README: "- [ ] 0.1 ..." → "- [x] 0.1 ..."
-if [ -f README.md ]; then
-  ESC=$(printf '%s' "$ID" | sed 's/[.[\*^$]/\\&/g')
-  sed -i -E "s/^- \[ \] (${ESC}([^A-Za-zА-Яа-я0-9]|\$).*)/- [x] \1/" README.md || true
+# галочка: правим и README рядом, и README в корне репозитория
+ROOT=$(git rev-parse --show-toplevel)
+ESC=$(printf '%s' "$ID" | sed 's/[.[\*^$]/\\&/g')
+TICKED=0
+SEEN=""
+for RM in "$PWD/README.md" "$ROOT/README.md"; do
+  [ -f "$RM" ] || continue
+  case " $SEEN " in *" $RM "*) continue;; esac
+  SEEN="${SEEN:-} $RM"
+  if grep -qE "^- \[ \] ${ESC}([^A-Za-zА-Яа-я0-9]|\$)" "$RM"; then
+    sed -i -E "s/^- \[ \] (${ESC}([^A-Za-zА-Яа-я0-9]|\$).*)/- [x] \1/" "$RM"
+    git add "$RM"; TICKED=1
+  fi
+done
+if [ "$TICKED" = "0" ]; then
+  echo "  ~ галочку для «$ID» в README не нашёл — проверьте номер"
 fi
 
 git add "$EV"
-[ -f README.md ] && git add README.md
-[ -f ЖУРНАЛ.md ] && git add ЖУРНАЛ.md
+if [ -f "$ROOT/ЖУРНАЛ.md" ]; then git add "$ROOT/ЖУРНАЛ.md" || true; fi
 
 if git diff --cached --quiet; then
   echo "Нечего фиксировать — ничего не изменилось."
