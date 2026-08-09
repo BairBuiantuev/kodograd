@@ -1,0 +1,17 @@
+SKREPA1=$(git commit-tree 9a495baf57652abb3ca9e3a3acb5d2d4ad8481b3 -m "повторная скрепа")
+echo $SKREPA1
+516f4240454df0de5ffa2b9b80802abaa4264956
+git cat-file -p $SKREPA1
+tree 9a495baf57652abb3ca9e3a3acb5d2d4ad8481b3
+author Bair <ber89ber89@gmail.com> 1786255574 +0800
+committer Bair <ber89ber89@gmail.com> 1786255574 +0800
+
+повторная скрепа
+echo "и тебе еще раз не хворать" >> gramota.txt
+git update-index --add gramota.txt
+TREE2=$(git write-tree)
+SKREPA2=$(git commit-tree $TREE2 -p $SKREPA1 -m "вторая скрепа повторно")
+git cat-file -p $SKREPA2 | head -3
+tree 44c1b9104d86692336f4d9129bf664874cde7d17
+parent 516f4240454df0de5ffa2b9b80802abaa4264956
+author Bair <ber89ber89@gmail.com> 1786255574 +0800
