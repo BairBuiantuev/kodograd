@@ -3,10 +3,11 @@
 #
 #   ./otmetit.sh 0.1 "Мерило: заклеймил лист, доказал содержимую адресацию"
 #
-# Лучше — с уликой на входе (тогда в репозиторий ляжет настоящий вывод):
-#
-#   git hash-object -w gramota.txt | ./otmetit.sh 0.1 "Мерило: заклеймил лист"
-#   { git cat-file -p 4b2a1f; } | ./otmetit.sh 0.2 "Разложник: составил список"
+# Улику подают на вход. Два вида входа:
+#   1) сырой вывод команд — обернётся в блок кода автоматически
+#        git hash-object -w gramota.txt | ./otmetit.sh 0.1 "Мерило: заклеймил лист"
+#   2) готовый разбор в markdown (первая строка начинается с #) — ляжет как есть
+#        ./otmetit.sh 1.0 "Утечка доказана" < /tmp/1.0-gotovo.md
 #
 # Что делает: кладёт улику в evidence/<id>.md, ставит [x] в README,
 # сшивает скрепу с внятной запиской.
@@ -30,17 +31,29 @@ git rev-parse --git-dir >/dev/null 2>&1 || { echo "Это не репозито�
 mkdir -p evidence
 EV="evidence/${ID}.md"
 
-{
-  printf '# %s — %s\n\n' "$ID" "$DESC"
-  printf '_отмечено: %s_\n\n' "$(date '+%Y-%m-%d %H:%M')"
-  printf '```\n'
-  if [ -t 0 ]; then
-    printf '(вывод не передан — задание отмечено без улики)\n'
-  else
-    cat
-  fi
-  printf '```\n'
-} > "$EV"
+# читаем то, что подали на вход
+IN=""
+if [ ! -t 0 ]; then IN=$(cat); fi
+
+if [ -z "$IN" ]; then
+  {
+    printf '# %s — %s\n\n' "$ID" "$DESC"
+    printf '_отмечено: %s_\n\n' "$(date '+%Y-%m-%d %H:%M')"
+    printf '```\n(вывод не передан — задание отмечено без улики)\n```\n'
+  } > "$EV"
+  echo "  ~ улика пустая: задание отмечено без доказательства"
+elif printf '%s\n' "$IN" | head -1 | grep -qE '^#'; then
+  # готовый разбор — кладём как есть, ничего не оборачиваем
+  printf '%s\n' "$IN" > "$EV"
+  echo "  улика: готовый разбор принят как есть"
+else
+  # сырой вывод команд — оборачиваем
+  {
+    printf '# %s — %s\n\n' "$ID" "$DESC"
+    printf '_отмечено: %s_\n\n' "$(date '+%Y-%m-%d %H:%M')"
+    printf '```\n%s\n```\n' "$IN"
+  } > "$EV"
+fi
 
 # галочка: правим и README рядом, и README в корне репозитория
 ROOT=$(git rev-parse --show-toplevel)
@@ -95,13 +108,10 @@ if [ -z "${UP:-}" ]; then
     echo "  ~ удалённой палаты нет (origin не задан) — работа только у вас"
   fi
 else
-  # спрашиваем Двойника, как у него дела; ничего не меняем в рабочем дереве
-  git fetch -q origin 2>/dev/null || echo "  ~ до Двойника не достучался — счёт ниже по последним известным данным"
-
+  git fetch -q origin 2>/dev/null || echo "  ~ до Двойника не достучался — счёт по последним известным данным"
   COUNTS=$(git rev-list --left-right --count "${UP}...HEAD" 2>/dev/null || echo "? ?")
   BEHIND=$(printf '%s' "$COUNTS" | awk '{print $1}')
   AHEAD=$(printf '%s' "$COUNTS" | awk '{print $2}')
-
   if [ "$BEHIND" = "?" ]; then
     echo "  ~ сравнить не удалось"
   elif [ "$AHEAD" = "0" ] && [ "$BEHIND" = "0" ]; then
