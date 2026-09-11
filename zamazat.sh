@@ -8,10 +8,14 @@
 #
 # Что НЕ трогает: 40-значные шестнадцатеричные хеши. Хеш — это и есть улика:
 # он доказывает, что объект существует, ничего не разглашая.
+#
+# Учебные пустышки (…PROBE…, EXAMPLE, XXXX) за секреты не считаются — иначе
+# проверка ругается на собственные скрипты самопроверки.
 
 set -uo pipefail
 
 MASK='‹ЗАМАЗАНО›'
+FAKE='PROBE|EXAMPLE|ЗАМАЗАНО|XXXXXX|0000000000'
 
 maskit() {
   sed -E \
@@ -24,7 +28,6 @@ maskit() {
 }
 
 scan() {
-  # печатает найденные опасные места; 0 — чисто, 1 — есть что прятать
   local target="$1" found=0 out
   out=$(grep -rInE \
       -e 'sk_(live|test)_[A-Za-z0-9]{4,}' \
@@ -33,7 +36,8 @@ scan() {
       -e 'xox[baprs]-[A-Za-z0-9-]{8,}' \
       -e '-----BEGIN [A-Z ]*PRIVATE KEY-----' \
       -e '([Pp]assword|[Ss]ecret|[Aa]pi_?[Kk]ey|[Tt]oken)[[:space:]]*[=:][[:space:]]*[A-Za-z0-9_/+.-]{8,}' \
-      --exclude-dir=.git --exclude='zamazat.sh' "$target" 2>/dev/null | grep -v "$MASK") || true
+      --exclude-dir=.git --exclude='zamazat.sh' "$target" 2>/dev/null \
+      | grep -vE "$FAKE") || true
   if [ -n "$out" ]; then found=1; printf '%s\n' "$out"; fi
   return $found
 }
